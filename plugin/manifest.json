@@ -1,0 +1,14 @@
+{
+  "name": "Figma Lean MCP",
+  "id": "figma-lean-mcp",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/index.html",
+  "permissions": [],
+  "networkAccess": {
+    "allowedDomains": ["*"],
+    "reasoning": "The server host and port are user-configurable (defaults to ws://127.0.0.1:1996), so any origin must be allowed."
+  },
+  "documentAccess": "dynamic-page",
+  "editorType": ["figma"]
+}

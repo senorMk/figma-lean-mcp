@@ -1,0 +1,9 @@
+# Go
+/figma-lean-mcp
+/bin/
+
+# Node
+plugin/node_modules/
+
+# OS
+.DS_Store

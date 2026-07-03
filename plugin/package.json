@@ -1,0 +1,16 @@
+{
+  "name": "figma-lean-mcp-plugin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite build --watch\" \"vite build --watch -c vite.config.main.ts\"",
+    "build": "vite build && vite build -c vite.config.main.ts"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1",
+    "concurrently": "^9",
+    "typescript": "^5",
+    "vite": "^6",
+    "vite-plugin-singlefile": "^2"
+  }
+}
