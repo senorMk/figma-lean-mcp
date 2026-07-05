@@ -106,7 +106,7 @@ Code):
 {
   "mcpServers": {
     "figma-lean-mcp": {
-      "command": "/Users/penjani/Documents/Work/Projects/figma-lean-mcp/bin/figma-lean-mcp",
+      "command": "/Users/user/Documents/Work/Projects/figma-lean-mcp/bin/figma-lean-mcp",
       "args": ["--port", "1996"]
     }
   }
@@ -121,7 +121,7 @@ Or run straight from source without pre-building:
     "figma-lean-mcp": {
       "command": "go",
       "args": ["run", "./cmd/figma-lean-mcp", "--port", "1996"],
-      "cwd": "/Users/penjani/Documents/Work/Projects/figma-lean-mcp"
+      "cwd": "/Users/user/Documents/Work/Projects/figma-lean-mcp"
     }
   }
 }
