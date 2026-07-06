@@ -28,7 +28,7 @@ const dispatch = async (request: any) => {
   }
 };
 
-figma.showUI(__html__, { width: 300, height: 200 });
+figma.showUI(__html__, { width: 300, height: 220 });
 sendStatus();
 figma.on("selectionchange", sendStatus);
 figma.on("currentpagechange", sendStatus);
