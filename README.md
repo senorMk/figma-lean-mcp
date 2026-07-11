@@ -10,6 +10,11 @@ It exists as a **benchmark**: to measure, in isolation, the token cost of the
 stack (Go MCP server + TypeScript/Vite Figma plugin, WebSocket bridge), stripped
 to the essentials.
 
+**Measured result: 92% fewer tool-definition context tokens per request**
+(+1,509 vs +19,266 input tokens over a no-server baseline; 5 tools vs 73;
+Claude Sonnet, end-to-end headless runs). Methodology and reproduction
+scripts in [`bench/`](bench/README.md).
+
 ## Design rationale: one primitive vs 70 tools
 
 A typical Figma MCP exposes a tool per Plugin-API operation:
