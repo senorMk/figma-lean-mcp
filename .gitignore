@@ -1,9 +1,13 @@
 # Go
 /figma-lean-mcp
 /bin/
+/dist/
 
 # Node
 plugin/node_modules/
+
+# Python
+__pycache__/
 
 # OS
 .DS_Store
