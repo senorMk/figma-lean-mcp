@@ -159,6 +159,35 @@ Try this request in your MCP client:
 
 > List the pages in my open Figma file.
 
+### Bridge port conflicts
+
+Only one server process can use a bridge address, such as
+`127.0.0.1:1996`. If another process uses that address, the new server exits
+with a startup error. The error identifies the address. The other process
+can be another MCP client or an unrelated application.
+
+If the plugin shows **Connected** but a second MCP client cannot start its
+server, the plugin can still be connected to the first client's server.
+Restarting the plugin does not release the port.
+
+Use the MCP client that already owns the bridge. To run a separate server,
+set a different port in that client's configuration, for example:
+
+```json
+"args": ["--port", "1997"]
+```
+
+Then click the address in the plugin panel and set it to
+`ws://127.0.0.1:1997`. The plugin and server must use the same host and port.
+Keep the plugin connected to the server for the client you are using.
+
+### Multiple MCP clients
+
+Each server process has its own bridge and plugin connection. Separate
+processes need separate ports. A plugin connection does not serve several
+MCP clients. Shared routing is a separate architecture change; this server
+does not select a new port or forward commands to another process.
+
 ### Updates
 
 Download both packages from the new release. Close the plugin and stop the
