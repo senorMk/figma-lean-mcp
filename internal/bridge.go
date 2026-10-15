@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"sync"
@@ -44,6 +45,13 @@ func NewBridge() *Bridge {
 
 // Start binds addr and serves /ws (plugin WebSocket) and /ping (health).
 func (b *Bridge) Start(addr string) error {
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w. Another process may already use this address. "+
+			"If another MCP client owns the bridge, use that client. "+
+			"Otherwise, set a different --port and connect the Figma plugin to the same host and port", addr, err)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", b.handleUpgrade)
 	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -51,14 +59,16 @@ func (b *Bridge) Start(addr string) error {
 		fmt.Fprintf(w, `{"status":"ok","connected":%t}`, b.IsConnected())
 	})
 
-	srv := &http.Server{Addr: addr, Handler: mux}
+	srv := &http.Server{Addr: listener.Addr().String(), Handler: mux}
+	b.mu.Lock()
 	b.server = srv
+	b.mu.Unlock()
+	bridgeLogger.Printf("listening on %s (plugin connects to ws://%s/ws)", srv.Addr, srv.Addr)
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			bridgeLogger.Printf("serve error: %v", err)
 		}
 	}()
-	bridgeLogger.Printf("listening on %s (plugin connects to ws://%s/ws)", addr, addr)
 	return nil
 }
 
