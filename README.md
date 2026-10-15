@@ -4,6 +4,8 @@ A deliberately **minimal, token-efficient Figma MCP server**. It exposes **one
 powerful primitive — `run_code` — plus a tiny set of read/export tools**, and
 relays them to a Figma plugin over a single WebSocket bridge.
 
+**[Install the server and plugin](#installation)** from prebuilt downloads.
+
 It exists as a **benchmark**: to measure, in isolation, the token cost of the
 "one primitive" approach versus a granular server that ships 70+ tools (e.g.
 [`figma-mcp-go`](https://github.com/vkhanhqui/figma-mcp-go)). Same proven
@@ -66,71 +68,151 @@ connects to. Each MCP tool call becomes a `{type, requestId, nodeIds, params}`
 frame; the plugin dispatches on `type`, calls the Plugin API, and returns
 `{type, requestId, data}`, matched back to the request by `requestId`.
 
-## Build
+## Installation
 
-Requires Go 1.26+ and Node 18+.
+Download the server and plugin from the **[latest release](https://github.com/senorMk/figma-lean-mcp/releases/latest)**.
+Go, Node.js, and a source checkout are not required. You need Figma desktop
+and an MCP client that can start a local server.
+
+### 1. Download the server
+
+Choose the archive for the computer that will run your MCP client:
+
+| Computer | Server archive |
+|---|---|
+| macOS, Apple silicon | `figma-lean-mcp_darwin_arm64.tar.gz` |
+| macOS, Intel | `figma-lean-mcp_darwin_amd64.tar.gz` |
+| Windows, Intel or AMD (64-bit) | `figma-lean-mcp_windows_amd64.zip` |
+| Windows, ARM64 | `figma-lean-mcp_windows_arm64.zip` |
+| Linux, Intel or AMD (64-bit) | `figma-lean-mcp_linux_amd64.tar.gz` |
+| Linux, ARM64 | `figma-lean-mcp_linux_arm64.tar.gz` |
+
+Extract the archive into a permanent folder. On macOS or Linux, you can use:
 
 ```bash
-make build          # builds the Go server (bin/figma-lean-mcp) + the plugin (plugin/dist/)
-# or individually:
-make server         # go build -o bin/figma-lean-mcp ./cmd/figma-lean-mcp
-make plugin         # cd plugin && npm install && npm run build
+mkdir -p "$HOME/.local/bin"
+# Example for a Mac with Apple silicon:
+tar -xzf "$HOME/Downloads/figma-lean-mcp_darwin_arm64.tar.gz" -C "$HOME/.local/bin"
+"$HOME/.local/bin/figma-lean-mcp" --version
 ```
 
-The plugin build produces `plugin/dist/code.js` and `plugin/dist/index.html`
-(self-contained — the UI script is inlined).
+On Windows, use **Extract All** and keep `figma-lean-mcp.exe` in a permanent
+folder, such as `C:\Tools\figma-lean-mcp`.
 
-## Run the server
+The release includes `SHA256SUMS`. To check an archive, compare its hash with
+the entry in that file:
 
 ```bash
-go run ./cmd/figma-lean-mcp          # bridge on 127.0.0.1:1996, MCP over stdio
-# flags: --host 127.0.0.1  --port 1996
+# macOS
+shasum -a 256 figma-lean-mcp_darwin_arm64.tar.gz
+# Linux
+sha256sum figma-lean-mcp_linux_amd64.tar.gz
 ```
 
-Normally you don't run it by hand — your MCP client launches it (see below).
+```powershell
+# Windows PowerShell
+Get-FileHash .\figma-lean-mcp_windows_amd64.zip -Algorithm SHA256
+```
 
-## Load the plugin in Figma and connect
+Automatic builds are not code-signed or notarized. Your operating system
+can ask for approval before the server starts. On macOS, after a blocked
+start, use **System Settings → Privacy & Security → Open Anyway** if you
+trust the downloaded file.
 
-1. Figma desktop → **Plugins → Development → Import plugin from manifest…**
-2. Select `plugin/manifest.json` in this repo.
-3. Run **Plugins → Development → Figma Lean MCP**. A small panel opens.
-4. The panel connects to `ws://127.0.0.1:1996` automatically and shows
-   **Connected** (green) once the server is running. Click the address at the
-   bottom-left to point it at a different host/port.
+### 2. Configure your MCP client
 
-The server and the plugin are independent: start the server (via your MCP
-client), then open the plugin — it reconnects automatically.
+Add the server to your client's MCP configuration. Use the full path to the
+extracted executable. The client starts the server when it needs it.
 
-## Register with Claude / an MCP client
-
-Build the binary first (`make server`), then add this to your MCP config
-(e.g. Claude Desktop's `claude_desktop_config.json`, or `.mcp.json` for Claude
-Code):
+For a client that uses `mcpServers`, such as Claude Desktop or Claude Code:
 
 ```json
 {
   "mcpServers": {
     "figma-lean-mcp": {
-      "command": "/Users/user/Documents/Work/Projects/figma-lean-mcp/bin/figma-lean-mcp",
+      "command": "/Users/YOUR_NAME/.local/bin/figma-lean-mcp",
       "args": ["--port", "1996"]
     }
   }
 }
 ```
 
-Or run straight from source without pre-building:
+On Windows, set `command` to a path such as
+`"C:\\Tools\\figma-lean-mcp\\figma-lean-mcp.exe"`. JSON requires two
+backslashes for each path separator. Restart your MCP client after the change.
 
-```json
-{
-  "mcpServers": {
-    "figma-lean-mcp": {
-      "command": "go",
-      "args": ["run", "./cmd/figma-lean-mcp", "--port", "1996"],
-      "cwd": "/Users/user/Documents/Work/Projects/figma-lean-mcp"
-    }
-  }
-}
+### 3. Install the built Figma plugin
+
+1. Download `figma-lean-mcp-plugin.zip` from the **same release** as the server.
+2. Extract the ZIP into a permanent folder. Keep `manifest.json` and the
+   `dist` folder together inside `figma-lean-mcp-plugin`.
+3. In Figma desktop, select **Plugins → Development → Import plugin from manifest…**.
+4. Select the extracted `figma-lean-mcp-plugin/manifest.json`.
+5. Open a design file. Run **Plugins → Development → Figma Lean MCP**.
+6. Start your MCP client. Keep the plugin open until its panel shows **Connected**.
+
+The plugin connects to `ws://127.0.0.1:1996` automatically. To use another
+host or port, click the address at the bottom-left of the plugin panel.
+Use the same port in your MCP client configuration.
+
+Try this request in your MCP client:
+
+> List the pages in my open Figma file.
+
+### Updates
+
+Download both packages from the new release. Close the plugin and stop the
+MCP client before you replace the extracted files. Then start the client
+and open the plugin again. Keep the same file paths so that the client
+configuration and Figma plugin import remain valid.
+
+The packages do not update themselves. The release workflow builds new
+downloads automatically after each push to `main`, including merged pull
+requests. Each release has a unique `build-<run number>-<commit>` tag.
+The latest-release link changes when a successful build of the current
+`main` commit is published.
+
+## Build from source
+
+Requires Go 1.26+ and Node.js 24+.
+
+```bash
+make build          # Build the server and plugin.
+make server         # Build bin/figma-lean-mcp only.
+make plugin         # Install locked dependencies and build plugin/dist/.
 ```
+
+Configure your MCP client with the full path to `bin/figma-lean-mcp`.
+Import `plugin/manifest.json` in Figma desktop. The connection steps are
+the same as for a downloaded release.
+
+For development, you can also start the server from the repository:
+
+```bash
+go run ./cmd/figma-lean-mcp
+# Options: --host 127.0.0.1 --port 1996 --version
+```
+
+### Build release packages
+
+Python 3 is also required. Use an empty output directory:
+
+```bash
+make release VERSION=local-test
+python3 scripts/check_release.py dist/release local-test
+```
+
+This builds six server archives, the plugin ZIP, and `SHA256SUMS` in
+`dist/release/`. To keep an earlier build, choose a new output directory:
+
+```bash
+python3 scripts/build_release.py --version local-test-2 --output dist/local-test-2
+```
+
+The [release workflow](.github/workflows/release.yml) runs these checks for
+pull requests and pushes to `main`. Only `main` builds publish releases.
+A maintainer can also run the workflow manually on `main`. It uses the
+repository's `GITHUB_TOKEN`; no separate release token is required.
 
 ## Worked example: build a whole screen in ONE `run_code` call
 

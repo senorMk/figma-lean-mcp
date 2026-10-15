@@ -23,7 +23,12 @@ var version = "0.1.0"
 func main() {
 	host := flag.String("host", "127.0.0.1", "host/IP for the plugin WebSocket bridge")
 	port := flag.Int("port", 1996, "port for the plugin WebSocket bridge")
+	showVersion := flag.Bool("version", false, "print the server version and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	logger := log.New(os.Stderr, "", 0)
 	addr := fmt.Sprintf("%s:%d", *host, *port)

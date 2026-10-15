@@ -1,0 +1,108 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: plugin/package-lock.json
+      - name: Set release version
+        id: version
+        run: echo "version=build-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+      - name: Check Go code
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Build release packages
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: python3 scripts/build_release.py --version "$RELEASE_VERSION"
+      - name: Check release packages
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: python3 scripts/check_release.py dist/release "$RELEASE_VERSION"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-packages
+          path: dist/release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-packages
+          path: release
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        shell: bash
+        run: |
+          cd release
+          sha256sum --check SHA256SUMS
+
+          # A repeated run must not change an existing public release.
+          if state=$(gh release view "$RELEASE_VERSION" --json isDraft --jq '.isDraft'); then
+            if [ "$state" = false ]; then
+              echo "Release $RELEASE_VERSION is already published."
+              exit 0
+            fi
+          else
+            cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          Built from commit $GITHUB_SHA on main.
+
+          Download the server archive for your operating system and processor.
+          Also download figma-lean-mcp-plugin.zip from this release.
+          Go and Node.js are not required to use these packages.
+
+          Installation: https://github.com/$GH_REPO/blob/$GITHUB_SHA/README.md#installation
+
+          SHA256SUMS contains the SHA-256 checksum for each archive.
+          These automatic builds are not code-signed or notarized.
+          EOF
+            gh release create "$RELEASE_VERSION" --target "$GITHUB_SHA" \
+              --title "Build $RELEASE_VERSION" --draft \
+              --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+
+          gh release upload "$RELEASE_VERSION" ./*.tar.gz ./*.zip SHA256SUMS --clobber
+
+          # An older build can finish after a newer build.
+          main_sha=$(gh api "repos/$GH_REPO/commits/main" --jq '.sha')
+          latest=false
+          if [ "$main_sha" = "$GITHUB_SHA" ]; then
+            latest=true
+          fi
+          gh release edit "$RELEASE_VERSION" --draft=false --latest="$latest"
